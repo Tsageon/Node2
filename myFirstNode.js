@@ -3,13 +3,13 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { parse } = require('node:url');
 
-const hostname = '127.0.0.1';
+const hostname = 'localhost';
 const port = 3001;
 
 const dataDir = path.join(__dirname, 'manager');  
 const filePath = path.join(dataDir, 'shopping-list.json');
 
-let lastId = 0; 
+let lastId = 0;
 
 const getLastIdFromData = (data) => {
   if (data.length === 0) return 0;
@@ -77,31 +77,39 @@ const server = createServer((req, res) => {
   }
 });
 
-const handleGet = (req, res) => {
-  console.log("Handling GET request");
-  const data = readJSONFile();
-  res.statusCode = 200;
-  res.setHeader('Content-Type', 'application/json');
-  res.end(JSON.stringify(data));
-};
-
 const handlePost = (req, res) => {
   let body = '';
+
   req.on('data', chunk => {
     body += chunk.toString();
   });
 
   req.on('end', () => {
-    const newItem = JSON.parse(body);
-    if (!newItem.name || !newItem.quantity) {
+    if (!body) {
       res.statusCode = 400;
-      res.end('Item must have name and quantity.');
+      res.end('Request body cannot be empty.');
+      return;
+    }
+
+    let newItem;
+    try {
+      newItem = JSON.parse(body); 
+    } catch (err) {
+      res.statusCode = 400;
+      res.end('Invalid JSON format.');
+      return;
+    }
+
+    
+    if (!newItem.name || !newItem.quantity || !newItem.category) {
+      res.statusCode = 400;
+      res.end('Shopping list item must have a name, quantity, and category.');
       return;
     }
 
     const data = readJSONFile();
     lastId += 1;
-    newItem.id = lastId; 
+    newItem.id = lastId;
     data.push(newItem);
     writeJSONFile(data);
 
@@ -111,40 +119,7 @@ const handlePost = (req, res) => {
   });
 };
 
-const handlePutPatch = (req, res) => {
-  console.log("Handling PUT/PATCH request");
-  let body = '';
-  
-  req.on('data', chunk => {
-    body += chunk.toString();
-  });
-
-  req.on('end', () => {
-    const updatedItem = JSON.parse(body);
-    console.log("Item to update:", updatedItem);
-
-    const data = readJSONFile();
-    const index = data.findIndex(item => item.id === updatedItem.id); 
-
-    if (index === -1) {
-      console.log("Item not found with ID:", updatedItem.id);
-      res.statusCode = 404; 
-      res.end('Item not found.');
-      return;
-    }
-    
-    console.log("Item to update:", updatedItem);
-    data[index] = { ...data[index], ...updatedItem };
-    writeJSONFile(data);
-
-    res.statusCode = 200;
-    res.setHeader('Content-Type', 'application/json');
-    res.end(JSON.stringify(data[index]));
-  });
-};
-
 const handleDelete = (req, res) => {
-  console.log("Handling DELETE request");
   const { query } = parse(req.url, true);
   const id = parseInt(query.id);
 
