@@ -3,5 +3,11 @@
     "name": "Food",
     "quantity": "20",
     "id": 1
+  },
+  {
+    "name": "kilk",
+    "quantity": "30",
+    "category": "sqwaa",
+    "id": 2
   }
 ]

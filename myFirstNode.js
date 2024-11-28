@@ -60,8 +60,7 @@ const server = createServer((req, res) => {
         handlePost(req, res);
         break;
       case 'PUT':
-      case 'PATCH':
-        handlePutPatch(req, res);
+        handlePut(req, res);
         break;
       case 'DELETE':
         handleDelete(req, res);
@@ -76,6 +75,32 @@ const server = createServer((req, res) => {
     res.end('Does not exist');
   }
 });
+
+
+const handleGet = (req, res) => {
+  const { query } = parse(req.url, true); 
+  const id = query.id; 
+
+  const data = readJSONFile(); 
+
+  if (id) {
+   
+    const item = data.find(i => i.id == id);
+    if (!item) {
+      res.statusCode = 404;
+      res.end('Item not found.');
+      return;
+    }
+    res.statusCode = 200;
+    res.setHeader('Content-Type', 'application/json');
+    res.end(JSON.stringify(item));
+  } else {
+    res.statusCode = 200;
+    res.setHeader('Content-Type', 'application/json');
+    res.end(JSON.stringify(data));
+  }
+};
+
 
 const handlePost = (req, res) => {
   let body = '';
@@ -118,6 +143,54 @@ const handlePost = (req, res) => {
     res.end(JSON.stringify(newItem));
   });
 };
+
+const handlePut = (req, res) => {
+  let body = '';
+
+  req.on('data', chunk => {
+    body += chunk.toString(); 
+  });
+
+  req.on('end', () => {
+    if (!body) {
+      res.statusCode = 400;
+      res.end('Request body cannot be empty.');
+      return;
+    }
+
+    let updatedItem;
+    try {
+      updatedItem = JSON.parse(body);
+    } catch (err) {
+      res.statusCode = 400;
+      res.end('Invalid JSON format.');
+      return;
+    }
+
+    if (!updatedItem.id || !updatedItem.name || !updatedItem.quantity || !updatedItem.category) {
+      res.statusCode = 400;
+      res.end('Shopping list item must have an id, name, quantity, and category.');
+      return;
+    }
+
+    const data = readJSONFile(); 
+    const index = data.findIndex(item => item.id === updatedItem.id); 
+
+    if (index === -1) {
+      res.statusCode = 404;
+      res.end('Item not found.');
+      return;
+    }
+
+    data[index] = { ...data[index], ...updatedItem };
+    writeJSONFile(data);  
+
+    res.statusCode = 200;
+    res.setHeader('Content-Type', 'application/json');
+    res.end(JSON.stringify(data[index]));
+  });
+};
+
 
 const handleDelete = (req, res) => {
   const { query } = parse(req.url, true);
